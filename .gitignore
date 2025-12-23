@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+.env
+venv/
+.venv/
+
+# Data (optional - include if you want to share sample data)
+# data_samples/*.db
+# data_samples/*.csv
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db

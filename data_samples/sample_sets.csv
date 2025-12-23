@@ -1,0 +1,11 @@
+date, athlete_id, exercise_id, set_number, reps, weight, rpe, notes
+2025-01-01, 1, 1, 1, 10, 100, 5, "Notes for set 1"
+2025-01-01, 1, 1, 2, 10, 100, 5, "Notes for set 2"
+2025-01-01, 1, 1, 3, 10, 100, 5, "Notes for set 3"
+2025-01-01, 1, 1, 4, 10, 100, 5, "Notes for set 4"
+2025-01-01, 1, 1, 5, 10, 100, 5, "Notes for set 5"
+2025-01-01, 1, 1, 6, 10, 100, 5, "Notes for set 6"
+2025-01-01, 1, 1, 7, 10, 100, 5, "Notes for set 7"
+2025-01-01, 1, 1, 8, 10, 100, 5, "Notes for set 8"
+2025-01-01, 1, 1, 9, 10, 100, 5, "Notes for set 9"
+2025-01-01, 1, 1, 10, 10, 100, 5, "Notes for set 10"

@@ -20,36 +20,98 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS for better styling
+# Custom CSS for better styling (dark mode compatible)
 st.markdown("""
 <style>
-    .metric-card {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    /* Fix metric cards for dark mode */
+    [data-testid="stMetric"] {
+        background: linear-gradient(135deg, #1a1f2e 0%, #2d3748 100%);
         padding: 20px;
-        border-radius: 10px;
-        color: white;
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
     }
-    .stMetric {
-        background-color: #f0f2f6;
-        padding: 15px;
-        border-radius: 10px;
+    [data-testid="stMetricLabel"] {
+        color: #a0aec0 !important;
+        font-size: 0.9rem !important;
     }
-    h1 {
-        color: #1e3a5f;
+    [data-testid="stMetricValue"] {
+        color: #ffffff !important;
+        font-size: 2rem !important;
+        font-weight: 700 !important;
     }
-    .highlight {
-        background-color: #ffeaa7;
-        padding: 10px;
+    [data-testid="stMetricDelta"] {
+        color: #68d391 !important;
+    }
+    [data-testid="stMetricDelta"][data-testid-delta="negative"] {
+        color: #fc8181 !important;
+    }
+    
+    /* Headers */
+    h1, h2, h3 {
+        color: #e2e8f0 !important;
+    }
+    
+    /* Sidebar */
+    [data-testid="stSidebar"] {
+        background-color: #1a1f2e;
+    }
+    
+    /* Progress bars in training mix */
+    .progress-bar-bg {
+        background-color: rgba(255, 255, 255, 0.1);
         border-radius: 5px;
+        height: 20px;
+        width: 100%;
     }
 </style>
 """, unsafe_allow_html=True)
 
 
-@st.cache_data
+@st.cache_data(ttl=300)  # Cache for 5 minutes
 def load_data():
-    """Load data from CSV files or database."""
-    # Try to find data files
+    """Load data from Azure SQL, local SQLite, or CSV files."""
+    import os
+    
+    # Check for Azure SQL credentials (from secrets or env vars)
+    azure_server = None
+    if hasattr(st, 'secrets') and 'AZURE_SQL_SERVER' in st.secrets:
+        azure_server = st.secrets.get("AZURE_SQL_SERVER")
+        azure_db = st.secrets.get("AZURE_SQL_DB", "fitness_db")
+        azure_user = st.secrets.get("AZURE_SQL_USER")
+        azure_pass = st.secrets.get("AZURE_SQL_PASS")
+    elif os.getenv("AZURE_SQL_SERVER"):
+        azure_server = os.getenv("AZURE_SQL_SERVER")
+        azure_db = os.getenv("AZURE_SQL_DB", "fitness_db")
+        azure_user = os.getenv("AZURE_SQL_USER")
+        azure_pass = os.getenv("AZURE_SQL_PASS")
+    
+    # Try Azure SQL first
+    if azure_server:
+        try:
+            from sqlalchemy import create_engine
+            from urllib.parse import quote_plus
+            
+            # URL-encode credentials to handle special characters
+            encoded_user = quote_plus(azure_user) if azure_user else ""
+            encoded_pass = quote_plus(azure_pass) if azure_pass else ""
+            
+            conn_str = f"mssql+pyodbc://{encoded_user}:{encoded_pass}@{azure_server}/{azure_db}?driver=ODBC+Driver+18+for+SQL+Server"
+            engine = create_engine(conn_str)
+            
+            workouts = pd.read_sql("SELECT * FROM workout_log", engine)
+            skills = pd.read_sql("SELECT * FROM skill_progress", engine)
+            workouts["date"] = pd.to_datetime(workouts["date"])
+            skills["date"] = pd.to_datetime(skills["date"])
+            
+            # Build features from workouts
+            features = build_features_from_workouts(workouts)
+            
+            return features, workouts, skills
+        except Exception as e:
+            st.warning(f"Could not connect to Azure SQL: {e}. Falling back to local files.")
+    
+    # Fall back to local files
     possible_paths = [
         Path("data_samples"),  # If running from project root
         Path("../data_samples"),  # If running from dashboard folder
@@ -85,6 +147,56 @@ def load_data():
         skills = None
     
     return features, workouts, skills
+
+
+def build_features_from_workouts(workouts: pd.DataFrame) -> pd.DataFrame:
+    """Build weekly features from workout data (used when loading from Azure SQL)."""
+    w = workouts.copy()
+    w["week_start"] = pd.to_datetime(w["date"]).dt.to_period("W").apply(lambda r: r.start_time)
+    
+    # Fill missing exercise_type
+    w["exercise_type"] = w["exercise_type"].fillna("unknown").replace("", "unknown")
+    
+    # Work estimate
+    w["weight_for_calc"] = w["weight"].fillna(0)
+    w.loc[w["weight_for_calc"] == 0, "weight_for_calc"] = 1
+    w["work_est"] = w["sets_manual"].fillna(0) * w["reps_manual"].fillna(0) * w["weight_for_calc"]
+    
+    # Aggregate
+    agg = w.groupby(["week_start", "exercise_type"], as_index=False).agg(
+        sessions=("date", "nunique"),
+        total_sets=("sets_manual", "sum"),
+        total_reps=("reps_manual", "sum"),
+        total_work=("work_est", "sum"),
+    )
+    
+    # Pivot
+    features = {}
+    for metric in ["sessions", "total_sets", "total_reps", "total_work"]:
+        pivot = agg.pivot(index="week_start", columns="exercise_type", values=metric)
+        pivot.columns = [f"{metric}_{col}" for col in pivot.columns]
+        features[metric] = pivot
+    
+    feat_df = pd.concat(features.values(), axis=1).reset_index().fillna(0)
+    
+    # Totals
+    set_cols = [c for c in feat_df.columns if c.startswith("total_sets_")]
+    work_cols = [c for c in feat_df.columns if c.startswith("total_work_")]
+    rep_cols = [c for c in feat_df.columns if c.startswith("total_reps_")]
+    
+    feat_df["total_sets_all"] = feat_df[set_cols].sum(axis=1)
+    feat_df["total_reps_all"] = feat_df[rep_cols].sum(axis=1)
+    feat_df["total_work_all"] = feat_df[work_cols].sum(axis=1)
+    
+    # Percentages
+    for exercise_type in ["strength", "skill", "accessory", "mobility"]:
+        col = f"total_work_{exercise_type}"
+        if col in feat_df.columns:
+            feat_df[f"pct_work_{exercise_type}"] = (
+                feat_df[col] / feat_df["total_work_all"].replace(0, 1) * 100
+            ).round(1)
+    
+    return feat_df
 
 
 def main():

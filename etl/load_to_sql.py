@@ -129,25 +129,67 @@ def verify_load(engine):
             print(row)
 
 
+def get_connection_config():
+    """
+    Get database connection configuration.
+    
+    Set these environment variables for Azure SQL:
+        AZURE_SQL_SERVER=your-server.database.windows.net
+        AZURE_SQL_DB=fitness_db
+        AZURE_SQL_USER=your-username
+        AZURE_SQL_PASS=your-password
+    
+    Or create a config/.env file with these values.
+    """
+    import os
+    from urllib.parse import quote_plus
+    from dotenv import load_dotenv
+    
+    # Try to load from .env file
+    env_path = Path(__file__).parent.parent / "config" / ".env"
+    if env_path.exists():
+        load_dotenv(env_path)
+    
+    # Check for Azure SQL credentials
+    azure_server = os.getenv("AZURE_SQL_SERVER")
+    
+    if azure_server:
+        # Use Azure SQL
+        azure_db = os.getenv("AZURE_SQL_DB", "fitness_db")
+        azure_user = os.getenv("AZURE_SQL_USER")
+        azure_pass = os.getenv("AZURE_SQL_PASS")
+        
+        # URL-encode credentials to handle special characters in password
+        encoded_user = quote_plus(azure_user) if azure_user else ""
+        encoded_pass = quote_plus(azure_pass) if azure_pass else ""
+        
+        conn_str = (
+            f"mssql+pyodbc://{encoded_user}:{encoded_pass}@{azure_server}/{azure_db}"
+            f"?driver=ODBC+Driver+18+for+SQL+Server"
+        )
+        return conn_str, True  # (connection_string, is_mssql)
+    else:
+        # Fall back to local SQLite
+        return "sqlite:///data_samples/fitness.db", False
+
+
 if __name__ == "__main__":
-    # ===========================================
-    # CONFIGURE YOUR CONNECTION STRING
-    # ===========================================
+    print("=" * 60)
+    print("FITNESS DATA LOADER")
+    print("=" * 60)
     
-    # Option 1: Local SQLite (for testing)
-    SQL_CONN = "sqlite:///data_samples/fitness.db"
-    USE_MSSQL = False
+    # Get database configuration
+    SQL_CONN, USE_MSSQL = get_connection_config()
     
-    # Option 2: Azure SQL (uncomment and configure when ready)
-    # SQL_CONN = "mssql+pyodbc://username:password@server.database.windows.net/dbname?driver=ODBC+Driver+18+for+SQL+Server"
-    # USE_MSSQL = True
-    
-    # ===========================================
+    if USE_MSSQL:
+        print(f"🔷 Using Azure SQL Database")
+    else:
+        print(f"📁 Using local SQLite database")
     
     # Load and validate data
     excel_path = Path(__file__).parent.parent / "data_samples" / "workout_entry_template.xlsx"
     
-    print("=== Loading Data ===")
+    print("\n=== Loading Data ===")
     workouts = load_workouts(excel_path)
     skills = load_skills(excel_path)
     
@@ -178,5 +220,18 @@ if __name__ == "__main__":
     # Verify
     verify_load(engine)
     
-    print("\n✅ Step 3 Complete — Data loaded to SQL!")
+    print("\n" + "=" * 60)
+    print("✅ Data loaded successfully!")
+    print("=" * 60)
+    
+    if USE_MSSQL:
+        print("\nYour Streamlit dashboard will now read from Azure SQL.")
+        print("Make sure to add these secrets in Streamlit Cloud:")
+        print("  AZURE_SQL_SERVER, AZURE_SQL_DB, AZURE_SQL_USER, AZURE_SQL_PASS")
+    else:
+        print("\nTo use Azure SQL, set these environment variables:")
+        print("  export AZURE_SQL_SERVER=your-server.database.windows.net")
+        print("  export AZURE_SQL_DB=fitness_db")
+        print("  export AZURE_SQL_USER=your-username")
+        print("  export AZURE_SQL_PASS=your-password")
 

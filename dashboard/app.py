@@ -589,6 +589,93 @@ def main():
         total_work = features_filtered["total_work_all"].sum()
         st.metric("Total Work Volume", f"{total_work:,.0f}")
     
+    # ===== RECENT WORKOUTS =====
+    if workouts is not None and len(workouts) > 0:
+        st.header("🗓️ Recent Workouts")
+        
+        # Get last 7 days of workouts
+        recent_workouts = workouts.sort_values("date", ascending=False)
+        
+        # Show the most recent workout date
+        most_recent_date = recent_workouts["date"].max()
+        st.markdown(f"""
+        <div style="margin-bottom: 15px;">
+            <span style="color: #a0aec0;">Most recent entry:</span> 
+            <span style="color: #667eea; font-weight: 600;">{most_recent_date.strftime('%A, %B %d, %Y')}</span>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Get unique recent dates for selection
+        unique_dates = recent_workouts["date"].dt.date.unique()[:14]  # Last 14 unique dates
+        
+        # Show workout cards for recent days
+        recent_days_to_show = min(7, len(unique_dates))
+        
+        cols = st.columns(min(4, recent_days_to_show))
+        
+        for i, date in enumerate(unique_dates[:recent_days_to_show]):
+            day_workouts = recent_workouts[recent_workouts["date"].dt.date == date]
+            with cols[i % 4]:
+                st.markdown(f"""
+                <div class="stat-card" style="margin-bottom: 15px;">
+                    <div style="font-size: 0.85rem; color: #667eea; font-weight: 600;">
+                        {pd.Timestamp(date).strftime('%a')}
+                    </div>
+                    <div style="font-size: 1.1rem; color: #e2e8f0; font-weight: 700;">
+                        {pd.Timestamp(date).strftime('%b %d')}
+                    </div>
+                    <div style="margin-top: 8px;">
+                        <span class="stat-value" style="font-size: 1.5rem;">{len(day_workouts)}</span>
+                        <span style="color: #a0aec0; font-size: 0.8rem;"> exercises</span>
+                    </div>
+                    <div style="font-size: 0.75rem; color: #718096; margin-top: 5px;">
+                        {day_workouts['sets_manual'].sum():.0f} sets · {day_workouts['reps_manual'].sum():.0f} reps
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+        
+        # Expandable detail table
+        with st.expander("📋 View Detailed Workout Log", expanded=False):
+            # Filter options
+            col1, col2 = st.columns([1, 2])
+            with col1:
+                days_to_show = st.selectbox(
+                    "Show entries from last:",
+                    options=[7, 14, 30, 60, 90],
+                    format_func=lambda x: f"{x} days"
+                )
+            
+            # Filter by date range
+            cutoff_date = datetime.now() - timedelta(days=days_to_show)
+            filtered_recent = recent_workouts[recent_workouts["date"] >= cutoff_date].copy()
+            
+            if len(filtered_recent) > 0:
+                # Format for display
+                display_recent = filtered_recent[["date", "exercise", "exercise_type", "sets_manual", "reps_manual", "weight", "weight_unit"]].copy()
+                display_recent["date"] = display_recent["date"].dt.strftime("%Y-%m-%d")
+                display_recent.columns = ["Date", "Exercise", "Type", "Sets", "Reps", "Weight", "Unit"]
+                
+                st.dataframe(
+                    display_recent,
+                    use_container_width=True,
+                    hide_index=True,
+                    column_config={
+                        "Date": st.column_config.TextColumn("Date", width="small"),
+                        "Exercise": st.column_config.TextColumn("Exercise", width="medium"),
+                        "Type": st.column_config.TextColumn("Type", width="small"),
+                        "Sets": st.column_config.NumberColumn("Sets", format="%d", width="small"),
+                        "Reps": st.column_config.NumberColumn("Reps", format="%d", width="small"),
+                        "Weight": st.column_config.NumberColumn("Weight", format="%.1f", width="small"),
+                        "Unit": st.column_config.TextColumn("Unit", width="small"),
+                    }
+                )
+                
+                st.caption(f"Showing {len(display_recent)} entries from the last {days_to_show} days")
+            else:
+                st.info(f"No workouts found in the last {days_to_show} days")
+        
+        st.markdown("<br>", unsafe_allow_html=True)
+    
     # ===== TRAINING VOLUME =====
     st.header("📊 Training Volume Over Time")
     

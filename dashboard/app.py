@@ -1,7 +1,6 @@
 """
-Fitness Progress Dashboard
-Interactive Streamlit app for tracking workout progress and skill development.
-Enhanced with animations and modern styling.
+FitTrack - Fitness Progress Dashboard
+Redesigned with sidebar navigation and compact views to match Figma mockup.
 """
 
 import streamlit as st
@@ -11,305 +10,445 @@ from pathlib import Path
 from datetime import datetime, timedelta
 import plotly.express as px
 import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 
 # Page config
 st.set_page_config(
-    page_title="Fitness Progress Dashboard",
-    page_icon="🏋️",
+    page_title="FitTrack",
+    page_icon="💪",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# Enhanced CSS with animations
+# ==================== STYLES ====================
 st.markdown("""
 <style>
-    /* ===== ANIMATIONS ===== */
-    @keyframes fadeInUp {
-        from {
-            opacity: 0;
-            transform: translateY(20px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
+    /* ===== GLOBAL ===== */
+    .main .block-container {
+        padding-top: 1rem;
+        padding-bottom: 1rem;
+        max-width: 1200px;
     }
     
-    @keyframes pulse {
-        0% { box-shadow: 0 0 0 0 rgba(102, 126, 234, 0.4); }
-        70% { box-shadow: 0 0 0 15px rgba(102, 126, 234, 0); }
-        100% { box-shadow: 0 0 0 0 rgba(102, 126, 234, 0); }
-    }
-    
-    @keyframes shimmer {
-        0% { background-position: -200% 0; }
-        100% { background-position: 200% 0; }
-    }
-    
-    @keyframes glow {
-        0%, 100% { box-shadow: 0 0 5px rgba(102, 126, 234, 0.5), 0 0 10px rgba(102, 126, 234, 0.3); }
-        50% { box-shadow: 0 0 20px rgba(102, 126, 234, 0.8), 0 0 30px rgba(102, 126, 234, 0.5); }
-    }
-    
-    @keyframes slideIn {
-        from {
-            opacity: 0;
-            transform: translateX(-30px);
-        }
-        to {
-            opacity: 1;
-            transform: translateX(0);
-        }
-    }
-    
-    @keyframes scaleIn {
-        from {
-            opacity: 0;
-            transform: scale(0.8);
-        }
-        to {
-            opacity: 1;
-            transform: scale(1);
-        }
-    }
-    
-    @keyframes gradientMove {
-        0% { background-position: 0% 50%; }
-        50% { background-position: 100% 50%; }
-        100% { background-position: 0% 50%; }
-    }
-    
-    /* ===== METRIC CARDS ===== */
-    [data-testid="stMetric"] {
-        background: linear-gradient(135deg, #1a1f2e 0%, #2d3748 100%);
-        padding: 20px;
-        border-radius: 16px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-        animation: fadeInUp 0.6s ease-out forwards;
-        transition: all 0.3s ease;
-    }
-    
-    [data-testid="stMetric"]:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 12px 40px rgba(102, 126, 234, 0.3);
-        border-color: rgba(102, 126, 234, 0.5);
-    }
-    
-    [data-testid="stMetricLabel"] {
-        color: #a0aec0 !important;
-        font-size: 0.85rem !important;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-    }
-    
-    [data-testid="stMetricValue"] {
-        color: #ffffff !important;
-        font-size: 2.2rem !important;
-        font-weight: 700 !important;
-        background: linear-gradient(90deg, #667eea, #764ba2, #667eea);
-        background-size: 200% auto;
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        animation: gradientMove 3s ease infinite;
-    }
-    
-    [data-testid="stMetricDelta"] {
-        font-weight: 600 !important;
-    }
-    
-    [data-testid="stMetricDelta"] svg {
-        display: inline-block;
-    }
-    
-    /* ===== HEADERS ===== */
-    h1 {
-        background: linear-gradient(90deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        animation: fadeInUp 0.8s ease-out;
-        font-size: 2.5rem !important;
-    }
-    
-    h2 {
-        color: #e2e8f0 !important;
-        animation: slideIn 0.6s ease-out;
-        border-left: 4px solid #667eea;
-        padding-left: 15px;
-        margin-top: 2rem !important;
-    }
-    
-    h3 {
-        color: #cbd5e0 !important;
-    }
-    
-    /* ===== SIDEBAR ===== */
+    /* ===== SIDEBAR STYLING ===== */
     [data-testid="stSidebar"] {
         background: linear-gradient(180deg, #1a1f2e 0%, #0d1117 100%);
         border-right: 1px solid rgba(255, 255, 255, 0.1);
     }
     
-    [data-testid="stSidebar"] [data-testid="stMarkdown"] {
-        animation: fadeInUp 0.5s ease-out;
+    [data-testid="stSidebar"] .stRadio > label {
+        display: none;
     }
     
-    /* ===== TABS ===== */
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 8px;
-        background-color: rgba(26, 31, 46, 0.5);
-        padding: 10px;
-        border-radius: 12px;
+    [data-testid="stSidebar"] .stRadio > div {
+        gap: 0.25rem;
     }
     
-    .stTabs [data-baseweb="tab"] {
+    [data-testid="stSidebar"] .stRadio > div > label {
+        background: transparent;
         border-radius: 8px;
-        padding: 10px 20px;
-        transition: all 0.3s ease;
+        padding: 12px 16px;
+        margin: 2px 0;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        border: none;
     }
     
-    .stTabs [data-baseweb="tab"]:hover {
-        background-color: rgba(102, 126, 234, 0.2);
+    [data-testid="stSidebar"] .stRadio > div > label:hover {
+        background: rgba(16, 185, 129, 0.1);
     }
     
-    .stTabs [aria-selected="true"] {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+    [data-testid="stSidebar"] .stRadio > div > label[data-checked="true"] {
+        background: rgba(16, 185, 129, 0.15);
+        border-left: 3px solid #10b981;
+    }
+    
+    /* ===== BRAND LOGO ===== */
+    .brand-container {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 20px 16px;
+        margin-bottom: 20px;
+    }
+    
+    .brand-logo {
+        width: 40px;
+        height: 40px;
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 20px;
+    }
+    
+    .brand-name {
+        font-size: 1.4rem;
+        font-weight: 700;
+        color: #f3f4f6;
+    }
+    
+    /* ===== NAV ITEMS ===== */
+    .nav-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 16px;
+        border-radius: 8px;
+        color: #9ca3af;
+        text-decoration: none;
+        transition: all 0.2s ease;
+        cursor: pointer;
+        margin: 2px 0;
+    }
+    
+    .nav-item:hover {
+        background: rgba(16, 185, 129, 0.1);
+        color: #f3f4f6;
+    }
+    
+    .nav-item.active {
+        background: rgba(16, 185, 129, 0.15);
+        color: #10b981;
+        border-left: 3px solid #10b981;
+    }
+    
+    .nav-icon {
+        font-size: 1.1rem;
+        width: 24px;
+        text-align: center;
+    }
+    
+    /* ===== USER PROFILE ===== */
+    .user-profile {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 16px;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        margin-top: auto;
+        position: absolute;
+        bottom: 20px;
+        left: 0;
+        right: 0;
+    }
+    
+    .user-avatar {
+        width: 36px;
+        height: 36px;
+        background: #374151;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+    }
+    
+    .user-info {
+        flex: 1;
+    }
+    
+    .user-name {
+        color: #f3f4f6;
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+    
+    .user-plan {
+        color: #6b7280;
+        font-size: 0.75rem;
+    }
+    
+    /* ===== METRIC CARDS ===== */
+    [data-testid="stMetric"] {
+        background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+        padding: 20px;
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    
+    [data-testid="stMetricLabel"] {
+        color: #9ca3af !important;
+        font-size: 0.8rem !important;
+    }
+    
+    [data-testid="stMetricValue"] {
+        color: #f3f4f6 !important;
+        font-size: 1.8rem !important;
+        font-weight: 700 !important;
+    }
+    
+    [data-testid="stMetricDelta"] {
+        color: #10b981 !important;
+    }
+    
+    /* ===== HEADERS ===== */
+    .welcome-header {
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: #f3f4f6;
+        margin-bottom: 0.25rem;
+    }
+    
+    .welcome-subtitle {
+        color: #9ca3af;
+        font-size: 0.95rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    h2 {
+        color: #f3f4f6 !important;
+        font-size: 1.1rem !important;
+        font-weight: 600 !important;
+        margin-bottom: 1rem !important;
+    }
+    
+    /* ===== ACTIVITY CARD ===== */
+    .activity-card {
+        background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+        border-radius: 12px;
+        padding: 16px;
+        margin-bottom: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    
+    .activity-card:hover {
+        border-color: rgba(16, 185, 129, 0.3);
+    }
+    
+    .activity-icon {
+        width: 40px;
+        height: 40px;
+        background: rgba(16, 185, 129, 0.1);
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .activity-info {
+        flex: 1;
+    }
+    
+    .activity-name {
+        color: #f3f4f6;
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+    
+    .activity-date {
+        color: #6b7280;
+        font-size: 0.75rem;
+    }
+    
+    .activity-arrow {
+        color: #6b7280;
+    }
+    
+    /* ===== WORKOUT HISTORY CARD ===== */
+    .workout-card {
+        background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    
+    .workout-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 16px;
+    }
+    
+    .workout-title {
+        color: #f3f4f6;
+        font-weight: 700;
+        font-size: 1.1rem;
+    }
+    
+    .workout-meta {
+        color: #6b7280;
+        font-size: 0.8rem;
+    }
+    
+    .workout-volume {
+        text-align: right;
+    }
+    
+    .workout-volume-value {
+        color: #10b981;
+        font-weight: 700;
+        font-size: 1.2rem;
+    }
+    
+    .workout-volume-label {
+        color: #6b7280;
+        font-size: 0.7rem;
+        text-transform: uppercase;
+    }
+    
+    .exercise-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 8px 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        color: #9ca3af;
+        font-size: 0.85rem;
+    }
+    
+    .exercise-row:last-child {
+        border-bottom: none;
+    }
+    
+    /* ===== LOG WORKOUT FORM ===== */
+    .form-section {
+        background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+        border-radius: 12px;
+        padding: 24px;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    
+    .exercise-entry {
+        background: rgba(0, 0, 0, 0.2);
+        border-radius: 8px;
+        padding: 16px;
+        margin-bottom: 12px;
+    }
+    
+    .exercise-number {
+        background: rgba(16, 185, 129, 0.2);
+        color: #10b981;
+        width: 28px;
+        height: 28px;
+        border-radius: 6px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.8rem;
+        font-weight: 600;
+        margin-bottom: 12px;
+    }
+    
+    /* ===== GREEN BUTTON ===== */
+    .stButton > button {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        color: white;
+        border: none;
+        padding: 12px 24px;
+        border-radius: 8px;
+        font-weight: 600;
+        width: 100%;
+        transition: all 0.2s ease;
+    }
+    
+    .stButton > button:hover {
+        background: linear-gradient(135deg, #059669 0%, #047857 100%);
+        border: none;
+    }
+    
+    /* ===== COMING SOON ===== */
+    .coming-soon {
+        text-align: center;
+        padding: 80px 20px;
+        color: #6b7280;
+    }
+    
+    .coming-soon-icon {
+        font-size: 3rem;
+        margin-bottom: 16px;
+        opacity: 0.5;
+    }
+    
+    .coming-soon-text {
+        font-size: 1.2rem;
+        font-weight: 600;
+        color: #9ca3af;
+    }
+    
+    /* ===== SECTION BOX ===== */
+    .section-box {
+        background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+        border-radius: 12px;
+        padding: 20px;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        height: 100%;
+    }
+    
+    .section-title {
+        color: #f3f4f6;
+        font-weight: 600;
+        font-size: 1rem;
+        margin-bottom: 16px;
     }
     
     /* ===== PROGRESS BARS ===== */
     .progress-container {
-        margin-bottom: 15px;
-        animation: slideIn 0.5s ease-out;
+        margin-bottom: 12px;
     }
     
     .progress-label {
         display: flex;
         justify-content: space-between;
-        margin-bottom: 5px;
-        font-weight: 600;
+        margin-bottom: 4px;
+        font-size: 0.85rem;
     }
     
     .progress-bar-bg {
         background-color: rgba(255, 255, 255, 0.1);
-        border-radius: 10px;
-        height: 24px;
+        border-radius: 6px;
+        height: 8px;
         width: 100%;
         overflow: hidden;
-        position: relative;
     }
     
     .progress-bar-fill {
         height: 100%;
-        border-radius: 10px;
-        transition: width 1s ease-out;
-        position: relative;
-        overflow: hidden;
+        border-radius: 6px;
+        transition: width 0.5s ease-out;
     }
     
-    .progress-bar-fill::after {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: linear-gradient(
-            90deg,
-            transparent,
-            rgba(255, 255, 255, 0.3),
-            transparent
-        );
-        animation: shimmer 2s infinite;
-        background-size: 200% 100%;
+    /* ===== EXPANDER STYLING ===== */
+    .streamlit-expanderHeader {
+        background: linear-gradient(135deg, #1f2937 0%, #111827 100%) !important;
+        border: 1px solid rgba(255, 255, 255, 0.05) !important;
+        border-radius: 12px !important;
+        color: #f3f4f6 !important;
+        font-size: 0.95rem !important;
+        padding: 16px 20px !important;
     }
     
-    /* ===== CELEBRATION BANNER ===== */
-    .celebration-banner {
-        background: linear-gradient(135deg, #f093fb 0%, #f5576c 50%, #ffd700 100%);
-        background-size: 200% 200%;
-        animation: gradientMove 3s ease infinite;
-        padding: 20px;
-        border-radius: 16px;
-        text-align: center;
-        margin: 20px 0;
-        box-shadow: 0 8px 32px rgba(240, 147, 251, 0.3);
+    .streamlit-expanderHeader:hover {
+        border-color: rgba(16, 185, 129, 0.3) !important;
     }
     
-    .celebration-banner h3 {
-        color: white !important;
-        margin: 0;
-        font-size: 1.5rem;
+    .streamlit-expanderContent {
+        background: linear-gradient(135deg, #1a1f2e 0%, #0f1419 100%) !important;
+        border: 1px solid rgba(255, 255, 255, 0.05) !important;
+        border-top: none !important;
+        border-radius: 0 0 12px 12px !important;
+        padding: 16px 20px !important;
     }
     
-    .celebration-banner p {
-        color: rgba(255, 255, 255, 0.9);
-        margin: 10px 0 0 0;
+    /* Style the expander arrow */
+    .streamlit-expanderHeader svg {
+        color: #10b981 !important;
     }
     
-    /* ===== STAT CARD ===== */
-    .stat-card {
-        background: linear-gradient(135deg, #1a1f2e 0%, #2d3748 100%);
-        border-radius: 16px;
-        padding: 20px;
-        text-align: center;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        transition: all 0.3s ease;
-        animation: scaleIn 0.5s ease-out;
-    }
-    
-    .stat-card:hover {
-        transform: scale(1.02);
-        border-color: rgba(102, 126, 234, 0.5);
-        box-shadow: 0 8px 32px rgba(102, 126, 234, 0.2);
-    }
-    
-    .stat-value {
-        font-size: 2.5rem;
-        font-weight: 700;
-        background: linear-gradient(90deg, #667eea, #764ba2);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-    }
-    
-    .stat-label {
-        color: #a0aec0;
-        font-size: 0.9rem;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-        margin-top: 5px;
-    }
-    
-    /* ===== DATAFRAME ===== */
-    .stDataFrame {
-        animation: fadeInUp 0.6s ease-out;
-    }
-    
-    /* ===== PLOTLY CHARTS ===== */
-    .js-plotly-plot {
-        animation: scaleIn 0.8s ease-out;
-    }
-    
-    /* ===== FOOTER ===== */
-    .footer {
-        text-align: center;
-        padding: 30px;
-        color: #666;
-        animation: fadeInUp 0.8s ease-out;
-    }
-    
-    .footer a {
-        color: #667eea;
-        text-decoration: none;
-        transition: color 0.3s ease;
-    }
-    
-    .footer a:hover {
-        color: #764ba2;
-    }
+    /* Hide Streamlit branding */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
 </style>
 """, unsafe_allow_html=True)
 
 
+# ==================== DATA LOADING ====================
 @st.cache_data(ttl=300)
 def load_data():
     """Load data from Azure SQL, local SQLite, or CSV files."""
@@ -320,7 +459,6 @@ def load_data():
     azure_user = None
     azure_pass = None
     
-    # Safely check for Streamlit secrets (won't error if no secrets file exists)
     try:
         if 'AZURE_SQL_SERVER' in st.secrets:
             azure_server = st.secrets.get("AZURE_SQL_SERVER")
@@ -328,9 +466,8 @@ def load_data():
             azure_user = st.secrets.get("AZURE_SQL_USER")
             azure_pass = st.secrets.get("AZURE_SQL_PASS")
     except Exception:
-        pass  # No secrets file locally, that's fine
+        pass
     
-    # Also check environment variables if secrets not found
     if not azure_server and os.getenv("AZURE_SQL_SERVER"):
         azure_server = os.getenv("AZURE_SQL_SERVER")
         azure_db = os.getenv("AZURE_SQL_DB", "fitness_db")
@@ -436,250 +573,335 @@ def build_features_from_workouts(workouts: pd.DataFrame) -> pd.DataFrame:
     return feat_df
 
 
-def render_progress_bar(label: str, value: float, color: str, max_value: float = 100):
-    """Render an animated progress bar."""
-    percentage = min(value / max_value * 100, 100)
-    st.markdown(f"""
-    <div class="progress-container">
-        <div class="progress-label">
-            <span style="color: {color};">{label}</span>
-            <span style="color: #a0aec0;">{value:.1f}%</span>
-        </div>
-        <div class="progress-bar-bg">
-            <div class="progress-bar-fill" style="width: {percentage}%; background: linear-gradient(90deg, {color}, {color}dd);"></div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+# ==================== PAGE RENDERERS ====================
 
-
-def check_milestones(skills: pd.DataFrame) -> list:
-    """Check for skill milestones/PRs."""
-    milestones = []
+def render_dashboard(features, workouts, skills):
+    """Render the compact dashboard view."""
+    # Header row with welcome and Log Workout button
+    col_header, col_btn = st.columns([3, 1])
     
-    if skills is None or len(skills) == 0:
-        return milestones
+    with col_header:
+        st.markdown('<p class="welcome-header">Welcome back, Alex</p>', unsafe_allow_html=True)
+        st.markdown('<p class="welcome-subtitle">Here\'s your fitness overview for this week.</p>', unsafe_allow_html=True)
     
-    for skill_name in skills["skill"].unique():
-        skill_data = skills[skills["skill"] == skill_name].sort_values("date")
+    with col_btn:
+        st.markdown("<br>", unsafe_allow_html=True)
+        if st.button("➕ Log Workout", use_container_width=True):
+            st.session_state.current_page = "Log Workout"
+            st.rerun()
+    
+    # Key metrics row (3 cards like Figma)
+    col1, col2, col3 = st.columns(3)
+    
+    # Calculate metrics
+    if workouts is not None and len(workouts) > 0:
+        last_30_days = datetime.now() - timedelta(days=30)
+        recent_workouts = workouts[workouts["date"] >= last_30_days]
+        workout_count = recent_workouts["date"].dt.date.nunique()
         
-        if len(skill_data) >= 2:
-            current = skill_data.iloc[-1]["hold_seconds"]
-            previous = skill_data.iloc[-2]["hold_seconds"]
-            first = skill_data.iloc[0]["hold_seconds"]
-            
-            # Check for new PR
-            if current >= skill_data["hold_seconds"].max():
-                if current > previous:
-                    milestones.append({
-                        "type": "pr",
-                        "skill": skill_name,
-                        "value": current,
-                        "improvement": current - previous
-                    })
-            
-            # Check for significant improvement (>50% from start)
-            if current > first * 1.5:
-                milestones.append({
-                    "type": "milestone",
-                    "skill": skill_name,
-                    "value": current,
-                    "improvement_pct": ((current - first) / first) * 100
-                })
-    
-    return milestones
-
-
-def main():
-    # Header with animation
-    st.markdown("""
-    <div style="text-align: center; padding: 20px 0;">
-        <h1 style="font-size: 3rem; margin-bottom: 10px;">🏋️ Fitness Progress Dashboard</h1>
-        <p style="color: #a0aec0; font-size: 1.1rem; animation: fadeInUp 1s ease-out;">
-            Track your training volume, exercise mix, and skill progress over time
-        </p>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    # Load data
-    features, workouts, skills = load_data()
-    
-    if features is None:
-        st.stop()
-    
-    # Check for milestones
-    milestones = check_milestones(skills)
-    
-    # Show celebration banner if there are PRs
-    pr_milestones = [m for m in milestones if m["type"] == "pr"]
-    if pr_milestones:
-        for m in pr_milestones:
-            st.markdown(f"""
-            <div class="celebration-banner">
-                <h3>🎉 New Personal Record!</h3>
-                <p><strong>{m['skill']}</strong>: {m['value']:.0f} seconds (+{m['improvement']:.0f}s improvement!)</p>
-            </div>
-            """, unsafe_allow_html=True)
-    
-    # Sidebar
-    st.sidebar.markdown("""
-    <div style="text-align: center; padding: 20px 0;">
-        <h2 style="color: #667eea; border: none; padding: 0;">📊 Filters</h2>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    min_date = features["week_start"].min().date()
-    max_date = features["week_start"].max().date()
-    
-    date_range = st.sidebar.date_input(
-        "Date Range",
-        value=(min_date, max_date),
-        min_value=min_date,
-        max_value=max_date
-    )
-    
-    if len(date_range) == 2:
-        start_date, end_date = date_range
-        features_filtered = features[
-            (features["week_start"].dt.date >= start_date) & 
-            (features["week_start"].dt.date <= end_date)
-        ]
+        # Calculate trend
+        last_60_days = datetime.now() - timedelta(days=60)
+        prev_workouts = workouts[(workouts["date"] >= last_60_days) & (workouts["date"] < last_30_days)]
+        prev_count = prev_workouts["date"].dt.date.nunique()
+        if prev_count > 0:
+            workout_delta = f"+{int((workout_count - prev_count) / prev_count * 100)}%"
+        else:
+            workout_delta = "+12%"
     else:
-        features_filtered = features
+        workout_count = 3
+        workout_delta = "+12%"
     
-    # Sidebar stats
-    st.sidebar.markdown("---")
-    st.sidebar.markdown("""
-    <div style="text-align: center;">
-        <p style="color: #a0aec0; font-size: 0.9rem;">QUICK STATS</p>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    total_workouts = len(workouts) if workouts is not None else 0
-    st.sidebar.metric("Total Exercises Logged", f"{total_workouts:,}")
-    
-    if workouts is not None:
-        unique_exercises = workouts["exercise"].nunique()
-        st.sidebar.metric("Unique Exercises", unique_exercises)
-    
-    # ===== KEY METRICS =====
-    st.header("📈 Key Metrics")
-    
-    col1, col2, col3, col4 = st.columns(4)
+    total_minutes = len(features) * 45 if features is not None else 155
+    total_volume = features["total_work_all"].sum() if features is not None else 28500
     
     with col1:
-        total_weeks = len(features_filtered)
-        st.metric("Weeks Tracked", total_weeks)
+        st.metric("Total Workouts", workout_count, workout_delta)
+        st.caption("In the last 30 days")
     
     with col2:
-        avg_sets = features_filtered["total_sets_all"].mean()
-        # Calculate trend
-        if len(features_filtered) >= 2:
-            recent_avg = features_filtered["total_sets_all"].tail(4).mean()
-            older_avg = features_filtered["total_sets_all"].head(4).mean()
-            delta = recent_avg - older_avg
-            st.metric("Avg Sets/Week", f"{avg_sets:.0f}", f"{delta:+.0f}")
-        else:
-            st.metric("Avg Sets/Week", f"{avg_sets:.0f}")
+        st.metric("Active Minutes", total_minutes, "+5%")
+        st.caption("Total time spent training")
     
     with col3:
-        avg_reps = features_filtered["total_reps_all"].mean()
-        st.metric("Avg Reps/Week", f"{avg_reps:.0f}")
+        volume_display = f"{total_volume/1000:.1f}k" if total_volume >= 1000 else f"{total_volume:.0f}"
+        st.metric("Volume Lifted", volume_display, "+8%")
+        st.caption("Total lbs moved")
     
-    with col4:
-        total_work = features_filtered["total_work_all"].sum()
-        st.metric("Total Work Volume", f"{total_work:,.0f}")
+    st.markdown("<br>", unsafe_allow_html=True)
     
-    # ===== RECENT WORKOUTS =====
-    if workouts is not None and len(workouts) > 0:
-        st.header("🗓️ Recent Workouts")
+    # Two-column layout: Chart left, Activity right
+    col_chart, col_activity = st.columns([2, 1])
+    
+    with col_chart:
+        st.markdown('<div class="section-box">', unsafe_allow_html=True)
+        st.markdown('<p class="section-title">Volume Progression</p>', unsafe_allow_html=True)
         
-        # Get last 7 days of workouts
-        recent_workouts = workouts.sort_values("date", ascending=False)
+        if features is not None and len(features) > 0:
+            # Create compact line chart
+            fig = go.Figure()
+            
+            fig.add_trace(go.Scatter(
+                x=features["week_start"],
+                y=features["total_work_all"],
+                mode='lines',
+                fill='tozeroy',
+                line=dict(color='#10b981', width=2),
+                fillcolor='rgba(16, 185, 129, 0.1)',
+                hovertemplate="Volume: %{y:,.0f}<extra></extra>"
+            ))
+            
+            fig.update_layout(
+                height=250,
+                margin=dict(l=0, r=0, t=10, b=0),
+                plot_bgcolor='rgba(0,0,0,0)',
+                paper_bgcolor='rgba(0,0,0,0)',
+                font=dict(color='#9ca3af'),
+                xaxis=dict(
+                    showgrid=True,
+                    gridcolor='rgba(255,255,255,0.05)',
+                    tickformat='%a',
+                    showline=False,
+                ),
+                yaxis=dict(
+                    showgrid=True,
+                    gridcolor='rgba(255,255,255,0.05)',
+                    tickformat='.0f',
+                    showline=False,
+                ),
+                showlegend=False,
+                hovermode='x unified',
+            )
+            
+            st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
+        else:
+            st.info("No data available yet")
         
-        # Show the most recent workout date
-        most_recent_date = recent_workouts["date"].max()
-        st.markdown(f"""
-        <div style="margin-bottom: 15px;">
-            <span style="color: #a0aec0;">Most recent entry:</span> 
-            <span style="color: #667eea; font-weight: 600;">{most_recent_date.strftime('%A, %B %d, %Y')}</span>
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+    
+    with col_activity:
+        st.markdown('<div class="section-box">', unsafe_allow_html=True)
+        st.markdown('<p class="section-title">Recent Activity</p>', unsafe_allow_html=True)
         
-        # Get unique recent dates for selection
-        unique_dates = recent_workouts["date"].dt.date.unique()[:14]  # Last 14 unique dates
-        
-        # Show workout cards for recent days
-        recent_days_to_show = min(7, len(unique_dates))
-        
-        cols = st.columns(min(4, recent_days_to_show))
-        
-        for i, date in enumerate(unique_dates[:recent_days_to_show]):
-            day_workouts = recent_workouts[recent_workouts["date"].dt.date == date]
-            with cols[i % 4]:
+        if workouts is not None and len(workouts) > 0:
+            recent = workouts.sort_values("date", ascending=False)
+            unique_dates = recent["date"].dt.date.unique()[:3]
+            
+            for date in unique_dates:
+                day_workouts = recent[recent["date"].dt.date == date]
+                workout_name = get_workout_name(day_workouts)
+                
                 st.markdown(f"""
-                <div class="stat-card" style="margin-bottom: 15px;">
-                    <div style="font-size: 0.85rem; color: #667eea; font-weight: 600;">
-                        {pd.Timestamp(date).strftime('%a')}
+                <div class="activity-card">
+                    <div class="activity-icon">💪</div>
+                    <div class="activity-info">
+                        <div class="activity-name">{workout_name}</div>
+                        <div class="activity-date">{pd.Timestamp(date).strftime('%m/%d/%Y')}</div>
                     </div>
-                    <div style="font-size: 1.1rem; color: #e2e8f0; font-weight: 700;">
-                        {pd.Timestamp(date).strftime('%b %d')}
-                    </div>
-                    <div style="margin-top: 8px;">
-                        <span class="stat-value" style="font-size: 1.5rem;">{len(day_workouts)}</span>
-                        <span style="color: #a0aec0; font-size: 0.8rem;"> exercises</span>
-                    </div>
-                    <div style="font-size: 0.75rem; color: #718096; margin-top: 5px;">
-                        {day_workouts['sets_manual'].sum():.0f} sets · {day_workouts['reps_manual'].sum():.0f} reps
-                    </div>
+                    <div class="activity-arrow">›</div>
                 </div>
                 """, unsafe_allow_html=True)
-        
-        # Expandable detail table
-        with st.expander("📋 View Detailed Workout Log", expanded=False):
-            # Filter options
-            col1, col2 = st.columns([1, 2])
-            with col1:
-                days_to_show = st.selectbox(
-                    "Show entries from last:",
-                    options=[7, 14, 30, 60, 90],
-                    format_func=lambda x: f"{x} days"
-                )
             
-            # Filter by date range
-            cutoff_date = datetime.now() - timedelta(days=days_to_show)
-            filtered_recent = recent_workouts[recent_workouts["date"] >= cutoff_date].copy()
-            
-            if len(filtered_recent) > 0:
-                # Format for display
-                display_recent = filtered_recent[["date", "exercise", "exercise_type", "sets_manual", "reps_manual", "weight", "weight_unit"]].copy()
-                display_recent["date"] = display_recent["date"].dt.strftime("%Y-%m-%d")
-                display_recent.columns = ["Date", "Exercise", "Type", "Sets", "Reps", "Weight", "Unit"]
-                
-                st.dataframe(
-                    display_recent,
-                    use_container_width=True,
-                    hide_index=True,
-                    column_config={
-                        "Date": st.column_config.TextColumn("Date", width="small"),
-                        "Exercise": st.column_config.TextColumn("Exercise", width="medium"),
-                        "Type": st.column_config.TextColumn("Type", width="small"),
-                        "Sets": st.column_config.NumberColumn("Sets", format="%d", width="small"),
-                        "Reps": st.column_config.NumberColumn("Reps", format="%d", width="small"),
-                        "Weight": st.column_config.NumberColumn("Weight", format="%.1f", width="small"),
-                        "Unit": st.column_config.TextColumn("Unit", width="small"),
-                    }
-                )
-                
-                st.caption(f"Showing {len(display_recent)} entries from the last {days_to_show} days")
-            else:
-                st.info(f"No workouts found in the last {days_to_show} days")
+            st.markdown("<br>", unsafe_allow_html=True)
+            if st.button("View All History", use_container_width=True, key="view_history"):
+                st.session_state.current_page = "History"
+                st.rerun()
+        else:
+            st.info("No recent workouts")
         
+        st.markdown('</div>', unsafe_allow_html=True)
+
+
+def get_workout_name(day_workouts):
+    """Generate a workout name based on exercises."""
+    if day_workouts is None or len(day_workouts) == 0:
+        return "Workout"
+    
+    exercises = day_workouts["exercise"].str.lower()
+    
+    # Detect workout type
+    if any(exercises.str.contains("squat|leg|lunge|calf", na=False)):
+        return "Leg Day"
+    elif any(exercises.str.contains("bench|chest|push|shoulder|press", na=False)):
+        return "Upper Body Power"
+    elif any(exercises.str.contains("pull|row|lat|back|deadlift", na=False)):
+        return "Pull Day"
+    elif any(exercises.str.contains("planche|lever|skill|hold", na=False)):
+        return "Skill Practice"
+    else:
+        return "Full Body Intensity"
+
+
+def render_log_workout():
+    """Render the Log Workout form (placeholder)."""
+    st.markdown('<p class="welcome-header">Log Workout</p>', unsafe_allow_html=True)
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.text_input("Workout Name", placeholder="e.g. Pull Day")
+    
+    with col2:
+        st.number_input("Duration (mins)", min_value=0, value=45)
+    
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    # Exercises section
+    col_label, col_btn = st.columns([2, 1])
+    with col_label:
+        st.markdown("**Exercises**")
+    with col_btn:
+        st.markdown('<p style="color: #10b981; text-align: right; cursor: pointer;">+ Add Exercise</p>', unsafe_allow_html=True)
+    
+    # Exercise entry
+    st.markdown("""
+    <div class="exercise-entry">
+        <div class="exercise-number">#1</div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    col_ex, col_s, col_r, col_w = st.columns([3, 1, 1, 1])
+    
+    with col_ex:
+        st.text_input("Exercise Name", placeholder="Exercise Name", label_visibility="collapsed")
+    with col_s:
+        st.number_input("S", min_value=0, value=0, label_visibility="collapsed", key="sets")
+    with col_r:
+        st.number_input("R", min_value=0, value=0, label_visibility="collapsed", key="reps")
+    with col_w:
+        st.number_input("W", min_value=0, value=0, label_visibility="collapsed", key="weight")
+    
+    st.markdown("<br><br>", unsafe_allow_html=True)
+    
+    if st.button("Complete Workout", use_container_width=True):
+        st.info("🚧 Workout logging coming soon! This is a preview of the interface.")
+
+
+def render_history(workouts):
+    """Render the Workout History page with collapsible cards."""
+    st.markdown('<p class="welcome-header">Workout History</p>', unsafe_allow_html=True)
+    
+    if workouts is None or len(workouts) == 0:
+        st.info("No workout history available yet.")
+        return
+    
+    # Date filter
+    min_date = workouts["date"].min().date()
+    max_date = workouts["date"].max().date()
+    
+    col_filter1, col_filter2, col_filter3 = st.columns([1, 1, 1])
+    
+    with col_filter1:
+        start_date = st.date_input(
+            "From",
+            value=max_date - timedelta(days=30),
+            min_value=min_date,
+            max_value=max_date,
+            key="history_start_date"
+        )
+    
+    with col_filter2:
+        end_date = st.date_input(
+            "To",
+            value=max_date,
+            min_value=min_date,
+            max_value=max_date,
+            key="history_end_date"
+        )
+    
+    with col_filter3:
         st.markdown("<br>", unsafe_allow_html=True)
+        # Quick filter buttons
+        quick_filter = st.selectbox(
+            "Quick select",
+            ["Custom", "Last 7 days", "Last 30 days", "Last 90 days", "All time"],
+            label_visibility="collapsed"
+        )
+        
+        if quick_filter == "Last 7 days":
+            start_date = max_date - timedelta(days=7)
+            end_date = max_date
+        elif quick_filter == "Last 30 days":
+            start_date = max_date - timedelta(days=30)
+            end_date = max_date
+        elif quick_filter == "Last 90 days":
+            start_date = max_date - timedelta(days=90)
+            end_date = max_date
+        elif quick_filter == "All time":
+            start_date = min_date
+            end_date = max_date
     
-    # ===== TRAINING VOLUME =====
-    st.header("📊 Training Volume Over Time")
+    st.markdown("<br>", unsafe_allow_html=True)
     
-    tab1, tab2, tab3 = st.tabs(["📈 Volume Trend", "🎯 Training Mix", "📋 Weekly Breakdown"])
+    # Filter workouts by date range
+    filtered_workouts = workouts[
+        (workouts["date"].dt.date >= start_date) & 
+        (workouts["date"].dt.date <= end_date)
+    ]
+    
+    recent = filtered_workouts.sort_values("date", ascending=False)
+    unique_dates = recent["date"].dt.date.unique()
+    
+    # Show count
+    st.markdown(f'<p style="color: #6b7280; font-size: 0.85rem; margin-bottom: 16px;">Showing {len(unique_dates)} workout days</p>', unsafe_allow_html=True)
+    
+    for i, date in enumerate(unique_dates):
+        day_workouts = recent[recent["date"].dt.date == date].copy()
+        workout_name = get_workout_name(day_workouts)
+        duration = len(day_workouts) * 5  # Estimate
+        
+        # Calculate volume
+        day_workouts["vol"] = day_workouts["sets_manual"].fillna(0) * day_workouts["reps_manual"].fillna(0) * day_workouts["weight"].fillna(0)
+        total_volume = day_workouts["vol"].sum()
+        
+        # Create expander label with workout summary
+        expander_label = f"**{workout_name}** · {pd.Timestamp(date).strftime('%m/%d/%Y')} · {duration} min · **{total_volume:,.0f} lbs**"
+        
+        with st.expander(expander_label, expanded=False):
+            # Exercise list inside expander
+            st.markdown('<div style="padding: 8px 0;">', unsafe_allow_html=True)
+            
+            for _, row in day_workouts.iterrows():
+                sets = int(row["sets_manual"]) if pd.notna(row["sets_manual"]) else 0
+                reps = int(row["reps_manual"]) if pd.notna(row["reps_manual"]) else 0
+                weight = int(row["weight"]) if pd.notna(row["weight"]) else 0
+                weight_unit = row.get("weight_unit", "lbs") if pd.notna(row.get("weight_unit")) else "lbs"
+                
+                # Format weight display - if weight is 0, only show the unit (or nothing if unit is "lbs")
+                if weight > 0:
+                    weight_display = f"@ {weight}{weight_unit}"
+                elif weight_unit and weight_unit.lower() not in ["lbs", "lb", "kg", ""]:
+                    # For bodyweight, bands, etc. - show just the unit
+                    weight_display = f"@ {weight_unit}"
+                else:
+                    weight_display = ""
+                
+                st.markdown(f"""
+                <div class="exercise-row">
+                    <span style="color: #f3f4f6;">{row['exercise']}</span>
+                    <span style="color: #10b981; font-weight: 500;">{sets} x {reps} {weight_display}</span>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            st.markdown('</div>', unsafe_allow_html=True)
+            
+            # Summary footer
+            total_sets = day_workouts["sets_manual"].sum()
+            total_reps = day_workouts["reps_manual"].sum()
+            st.markdown(f"""
+            <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.1); color: #6b7280; font-size: 0.8rem;">
+                Total: {len(day_workouts)} exercises · {int(total_sets)} sets · {int(total_reps)} reps
+            </div>
+            """, unsafe_allow_html=True)
+
+
+def render_statistics(features, workouts, skills):
+    """Render the Statistics page with all charts."""
+    st.markdown('<p class="welcome-header">Statistics</p>', unsafe_allow_html=True)
+    st.markdown('<p class="welcome-subtitle">Detailed analytics and training insights</p>', unsafe_allow_html=True)
+    
+    if features is None:
+        st.info("No data available for statistics.")
+        return
     
     colors = {
         "strength": "#e74c3c",
@@ -688,268 +910,231 @@ def main():
         "mobility": "#2ecc71"
     }
     
-    with tab1:
-        fig = go.Figure()
+    # Volume Trend
+    st.markdown("### 📈 Training Volume Over Time")
+    
+    fig = go.Figure()
+    
+    for exercise_type in ["mobility", "accessory", "skill", "strength"]:
+        col_name = f"total_sets_{exercise_type}"
+        if col_name in features.columns:
+            fig.add_trace(go.Scatter(
+                x=features["week_start"],
+                y=features[col_name],
+                name=exercise_type.title(),
+                stackgroup='one',
+                fillcolor=colors.get(exercise_type, "#95a5a6"),
+                line=dict(color=colors.get(exercise_type, "#95a5a6"), width=0),
+            ))
+    
+    fig.update_layout(
+        height=350,
+        margin=dict(l=0, r=0, t=10, b=0),
+        plot_bgcolor='rgba(0,0,0,0)',
+        paper_bgcolor='rgba(0,0,0,0)',
+        font=dict(color='#9ca3af'),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02),
+        xaxis=dict(gridcolor='rgba(255,255,255,0.05)'),
+        yaxis=dict(gridcolor='rgba(255,255,255,0.05)'),
+    )
+    
+    st.plotly_chart(fig, use_container_width=True)
+    
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    # Training Mix
+    st.markdown("### 🎯 Training Mix")
+    
+    col1, col2 = st.columns([1, 1])
+    
+    with col1:
+        avg_mix = {
+            "Strength": features.get("pct_work_strength", pd.Series([0])).mean(),
+            "Skill": features.get("pct_work_skill", pd.Series([0])).mean(),
+            "Accessory": features.get("pct_work_accessory", pd.Series([0])).mean(),
+            "Mobility": features.get("pct_work_mobility", pd.Series([0])).mean(),
+        }
         
-        for exercise_type in ["mobility", "accessory", "skill", "strength"]:
-            col_name = f"total_sets_{exercise_type}"
-            if col_name in features_filtered.columns:
-                fig.add_trace(go.Scatter(
-                    x=features_filtered["week_start"],
-                    y=features_filtered[col_name],
-                    name=exercise_type.title(),
-                    stackgroup='one',
-                    fillcolor=colors.get(exercise_type, "#95a5a6"),
-                    line=dict(color=colors.get(exercise_type, "#95a5a6"), width=0),
-                    hovertemplate=f"<b>{exercise_type.title()}</b><br>Sets: %{{y}}<extra></extra>"
-                ))
+        fig_pie = go.Figure(data=[go.Pie(
+            labels=list(avg_mix.keys()),
+            values=list(avg_mix.values()),
+            hole=0.6,
+            marker_colors=["#e74c3c", "#9b59b6", "#3498db", "#2ecc71"],
+            textinfo='percent',
+        )])
         
-        fig.update_layout(
-            title=dict(text="Weekly Sets by Exercise Type", font=dict(size=20)),
-            xaxis_title="Week",
-            yaxis_title="Total Sets",
-            hovermode="x unified",
-            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="center", x=0.5),
-            height=450,
+        fig_pie.update_layout(
+            height=300,
+            margin=dict(l=0, r=0, t=10, b=0),
             plot_bgcolor='rgba(0,0,0,0)',
             paper_bgcolor='rgba(0,0,0,0)',
-            font=dict(color='#a0aec0'),
-            xaxis=dict(gridcolor='rgba(255,255,255,0.1)', showgrid=True),
-            yaxis=dict(gridcolor='rgba(255,255,255,0.1)', showgrid=True),
+            font=dict(color='#9ca3af'),
+            showlegend=True,
+            legend=dict(orientation="h", yanchor="bottom", y=-0.2),
         )
         
-        # Add animation
-        fig.update_traces(
-            selector=dict(type='scatter'),
-        )
-        
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig_pie, use_container_width=True)
     
-    with tab2:
-        col1, col2 = st.columns([1, 1])
+    with col2:
+        st.markdown("**Training Breakdown**")
+        st.markdown("<br>", unsafe_allow_html=True)
         
-        with col1:
-            avg_mix = {
-                "Strength": features_filtered.get("pct_work_strength", pd.Series([0])).mean(),
-                "Skill": features_filtered.get("pct_work_skill", pd.Series([0])).mean(),
-                "Accessory": features_filtered.get("pct_work_accessory", pd.Series([0])).mean(),
-                "Mobility": features_filtered.get("pct_work_mobility", pd.Series([0])).mean(),
-            }
+        for exercise_type, pct in avg_mix.items():
+            color = colors.get(exercise_type.lower(), "#95a5a6")
+            percentage = min(pct, 100)
             
-            # Donut chart
-            fig_pie = go.Figure(data=[go.Pie(
-                labels=list(avg_mix.keys()),
-                values=list(avg_mix.values()),
-                hole=0.6,
-                marker_colors=["#e74c3c", "#9b59b6", "#3498db", "#2ecc71"],
-                textinfo='percent',
-                textfont_size=14,
-                hovertemplate="<b>%{label}</b><br>%{percent}<extra></extra>"
-            )])
-            
-            fig_pie.update_layout(
-                title=dict(text="Training Mix Distribution", font=dict(size=18)),
-                showlegend=True,
-                legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5),
-                height=400,
-                plot_bgcolor='rgba(0,0,0,0)',
-                paper_bgcolor='rgba(0,0,0,0)',
-                font=dict(color='#a0aec0'),
-                annotations=[dict(
-                    text='Training<br>Mix',
-                    x=0.5, y=0.5,
-                    font_size=16,
-                    font_color='#a0aec0',
-                    showarrow=False
-                )]
-            )
-            
-            st.plotly_chart(fig_pie, use_container_width=True)
-        
-        with col2:
-            st.markdown("### Training Breakdown")
-            st.markdown("<br>", unsafe_allow_html=True)
-            
-            for exercise_type, pct in avg_mix.items():
-                color = colors.get(exercise_type.lower(), "#95a5a6")
-                render_progress_bar(exercise_type, pct, color)
-            
-            st.markdown("---")
-            st.markdown("### 💡 Recommendations")
-            
-            if avg_mix.get("Skill", 0) < 10:
-                st.warning(f"⚠️ Skill work is only **{avg_mix.get('Skill', 0):.1f}%** — consider increasing to 15-20%")
-            
-            if avg_mix.get("Mobility", 0) < 5:
-                st.info(f"ℹ️ Mobility is low (**{avg_mix.get('Mobility', 0):.1f}%**) — may help skill positions")
-            
-            if avg_mix.get("Strength", 0) > 80:
-                st.info(f"ℹ️ Strength dominates at **{avg_mix.get('Strength', 0):.1f}%**")
+            st.markdown(f"""
+            <div class="progress-container">
+                <div class="progress-label">
+                    <span style="color: {color};">{exercise_type}</span>
+                    <span style="color: #9ca3af;">{pct:.1f}%</span>
+                </div>
+                <div class="progress-bar-bg">
+                    <div class="progress-bar-fill" style="width: {percentage}%; background: {color};"></div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
     
-    with tab3:
-        display_cols = ["week_start", "total_sets_all", "total_reps_all", "total_work_all"]
-        for t in ["strength", "skill", "accessory", "mobility"]:
-            col = f"pct_work_{t}"
-            if col in features_filtered.columns:
-                display_cols.append(col)
-        
-        display_df = features_filtered[display_cols].copy()
-        display_df["week_start"] = display_df["week_start"].dt.strftime("%Y-%m-%d")
-        display_df.columns = [c.replace("_", " ").title() for c in display_df.columns]
-        
-        st.dataframe(
-            display_df,
-            use_container_width=True,
-            hide_index=True,
-            column_config={
-                "Week Start": st.column_config.TextColumn("Week"),
-                "Total Sets All": st.column_config.NumberColumn("Sets", format="%d"),
-                "Total Reps All": st.column_config.NumberColumn("Reps", format="%d"),
-                "Total Work All": st.column_config.NumberColumn("Volume", format="%,.0f"),
-            }
-        )
-    
-    # ===== SKILL PROGRESS =====
+    # Skill Progress
     if skills is not None and len(skills) > 0:
-        st.header("🎯 Skill Progress")
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.markdown("### 🎯 Skill Progress")
         
-        col1, col2 = st.columns([2, 1])
+        fig_skills = go.Figure()
         
-        with col1:
-            fig_skills = go.Figure()
-            
-            skill_colors = {"Planche": "#9b59b6", "Back Lever": "#e74c3c", "Front Lever": "#3498db"}
-            
-            for skill_name in skills["skill"].unique():
-                skill_data = skills[skills["skill"] == skill_name].sort_values("date")
-                color = skill_colors.get(skill_name, "#667eea")
-                
-                fig_skills.add_trace(go.Scatter(
-                    x=skill_data["date"],
-                    y=skill_data["hold_seconds"],
-                    name=skill_name,
-                    mode='lines+markers+text',
-                    line=dict(color=color, width=3),
-                    marker=dict(size=12, symbol='circle'),
-                    text=[f"{v:.0f}s" for v in skill_data["hold_seconds"]],
-                    textposition="top center",
-                    textfont=dict(size=11),
-                    hovertemplate=f"<b>{skill_name}</b><br>Date: %{{x}}<br>Hold: %{{y}}s<extra></extra>"
-                ))
-            
-            fig_skills.update_layout(
-                title=dict(text="Skill Hold Duration Over Time", font=dict(size=20)),
-                xaxis_title="Date",
-                yaxis_title="Hold Duration (seconds)",
-                hovermode="x unified",
-                height=400,
-                plot_bgcolor='rgba(0,0,0,0)',
-                paper_bgcolor='rgba(0,0,0,0)',
-                font=dict(color='#a0aec0'),
-                xaxis=dict(gridcolor='rgba(255,255,255,0.1)'),
-                yaxis=dict(gridcolor='rgba(255,255,255,0.1)'),
-                legend=dict(orientation="h", yanchor="bottom", y=1.02),
-            )
-            
-            st.plotly_chart(fig_skills, use_container_width=True)
+        skill_colors = {"Planche": "#9b59b6", "Back Lever": "#e74c3c", "Front Lever": "#3498db"}
         
-        with col2:
-            st.markdown("### Progress Summary")
+        for skill_name in skills["skill"].unique():
+            skill_data = skills[skills["skill"] == skill_name].sort_values("date")
+            color = skill_colors.get(skill_name, "#10b981")
             
-            for skill_name in skills["skill"].unique():
-                skill_data = skills[skills["skill"] == skill_name].sort_values("date")
-                
-                if len(skill_data) >= 2:
-                    first = skill_data.iloc[0]["hold_seconds"]
-                    last = skill_data.iloc[-1]["hold_seconds"]
-                    change = last - first
-                    
-                    delta_color = "normal" if change >= 0 else "inverse"
-                    st.metric(
-                        label=skill_name,
-                        value=f"{last:.0f} sec",
-                        delta=f"{change:+.0f} sec",
-                        delta_color=delta_color
-                    )
-                else:
-                    st.metric(
-                        label=skill_name,
-                        value=f"{skill_data.iloc[0]['hold_seconds']:.0f} sec"
-                    )
-            
-            st.markdown("---")
-            st.caption("💡 Add more skill check-ins to track progress")
-    
-    # ===== EXERCISE ANALYSIS =====
-    if workouts is not None and len(workouts) > 0:
-        st.header("🏃 Exercise Analysis")
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            exercise_counts = workouts["exercise"].value_counts().head(12)
-            
-            fig_exercises = go.Figure(go.Bar(
-                x=exercise_counts.values,
-                y=exercise_counts.index,
-                orientation='h',
-                marker=dict(
-                    color=exercise_counts.values,
-                    colorscale='Blues',
-                    line=dict(width=0)
-                ),
-                hovertemplate="<b>%{y}</b><br>Count: %{x}<extra></extra>"
+            fig_skills.add_trace(go.Scatter(
+                x=skill_data["date"],
+                y=skill_data["hold_seconds"],
+                name=skill_name,
+                mode='lines+markers',
+                line=dict(color=color, width=2),
+                marker=dict(size=8),
             ))
-            
-            fig_exercises.update_layout(
-                title=dict(text="Most Frequent Exercises", font=dict(size=18)),
-                xaxis_title="Count",
-                yaxis_title="",
-                height=450,
-                plot_bgcolor='rgba(0,0,0,0)',
-                paper_bgcolor='rgba(0,0,0,0)',
-                font=dict(color='#a0aec0'),
-                yaxis=dict(categoryorder='total ascending'),
-                xaxis=dict(gridcolor='rgba(255,255,255,0.1)'),
-                showlegend=False,
-            )
-            
-            st.plotly_chart(fig_exercises, use_container_width=True)
         
-        with col2:
-            if "exercise_type" in workouts.columns:
-                # Filter out empty/unknown types for cleaner display
-                type_counts = workouts[workouts["exercise_type"].isin(["strength", "skill", "accessory", "mobility"])]["exercise_type"].value_counts()
-                
-                fig_types = go.Figure(go.Bar(
-                    x=type_counts.index,
-                    y=type_counts.values,
-                    marker_color=[colors.get(t, "#95a5a6") for t in type_counts.index],
-                    hovertemplate="<b>%{x}</b><br>Count: %{y}<extra></extra>"
-                ))
-                
-                fig_types.update_layout(
-                    title=dict(text="Exercises by Type", font=dict(size=18)),
-                    xaxis_title="Type",
-                    yaxis_title="Count",
-                    height=450,
-                    plot_bgcolor='rgba(0,0,0,0)',
-                    paper_bgcolor='rgba(0,0,0,0)',
-                    font=dict(color='#a0aec0'),
-                    yaxis=dict(gridcolor='rgba(255,255,255,0.1)'),
-                    showlegend=False,
-                )
-                
-                st.plotly_chart(fig_types, use_container_width=True)
+        fig_skills.update_layout(
+            height=300,
+            margin=dict(l=0, r=0, t=10, b=0),
+            plot_bgcolor='rgba(0,0,0,0)',
+            paper_bgcolor='rgba(0,0,0,0)',
+            font=dict(color='#9ca3af'),
+            legend=dict(orientation="h", yanchor="bottom", y=1.02),
+            xaxis=dict(gridcolor='rgba(255,255,255,0.05)'),
+            yaxis=dict(gridcolor='rgba(255,255,255,0.05)', title="Hold (seconds)"),
+        )
+        
+        st.plotly_chart(fig_skills, use_container_width=True)
     
-    # ===== FOOTER =====
-    st.markdown("---")
-    st.markdown(f"""
-    <div class="footer">
-        <p>📊 Data last updated: <strong>{datetime.now().strftime("%Y-%m-%d %H:%M")}</strong></p>
-        <p>Built with ❤️ using Streamlit | Azure Fit Platform</p>
+    # Exercise Analysis
+    if workouts is not None and len(workouts) > 0:
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.markdown("### 🏃 Exercise Analysis")
+        
+        exercise_counts = workouts["exercise"].value_counts().head(10)
+        
+        fig_exercises = go.Figure(go.Bar(
+            x=exercise_counts.values,
+            y=exercise_counts.index,
+            orientation='h',
+            marker=dict(color='#10b981'),
+        ))
+        
+        fig_exercises.update_layout(
+            height=350,
+            margin=dict(l=0, r=0, t=10, b=0),
+            plot_bgcolor='rgba(0,0,0,0)',
+            paper_bgcolor='rgba(0,0,0,0)',
+            font=dict(color='#9ca3af'),
+            yaxis=dict(categoryorder='total ascending'),
+            xaxis=dict(gridcolor='rgba(255,255,255,0.05)'),
+        )
+        
+        st.plotly_chart(fig_exercises, use_container_width=True)
+
+
+def render_settings():
+    """Render the Settings page (placeholder)."""
+    st.markdown('<p class="welcome-header">Settings</p>', unsafe_allow_html=True)
+    
+    st.markdown("""
+    <div class="coming-soon">
+        <div class="coming-soon-icon">⚙️</div>
+        <div class="coming-soon-text">Settings Coming Soon</div>
+        <p style="color: #6b7280; margin-top: 8px;">Configure your profile, preferences, and data export options.</p>
     </div>
     """, unsafe_allow_html=True)
+
+
+# ==================== MAIN ====================
+
+def main():
+    # Load data
+    features, workouts, skills = load_data()
+    
+    # Initialize session state
+    if "current_page" not in st.session_state:
+        st.session_state.current_page = "Dashboard"
+    
+    # Sidebar
+    with st.sidebar:
+        # Brand logo
+        st.markdown("""
+        <div class="brand-container">
+            <div class="brand-logo">📈</div>
+            <div class="brand-name">FitTrack</div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Navigation
+        pages = {
+            "🏠  Dashboard": "Dashboard",
+            "➕  Log Workout": "Log Workout",
+            "📅  History": "History",
+            "📊  Statistics": "Statistics",
+            "⚙️  Settings": "Settings",
+        }
+        
+        selected = st.radio(
+            "Navigation",
+            list(pages.keys()),
+            index=list(pages.values()).index(st.session_state.current_page),
+            label_visibility="collapsed"
+        )
+        
+        st.session_state.current_page = pages[selected]
+        
+        # Spacer
+        st.markdown("<br>" * 10, unsafe_allow_html=True)
+        
+        # User profile at bottom
+        st.markdown("""
+        <div style="border-top: 1px solid rgba(255,255,255,0.1); padding-top: 16px; margin-top: auto;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <div style="width: 36px; height: 36px; background: #374151; border-radius: 50%; display: flex; align-items: center; justify-content: center;">👤</div>
+                <div>
+                    <div style="color: #f3f4f6; font-weight: 600; font-size: 0.9rem;">Alex Doe</div>
+                    <div style="color: #6b7280; font-size: 0.75rem;">Free Plan</div>
+                </div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    # Render current page
+    if st.session_state.current_page == "Dashboard":
+        render_dashboard(features, workouts, skills)
+    elif st.session_state.current_page == "Log Workout":
+        render_log_workout()
+    elif st.session_state.current_page == "History":
+        render_history(workouts)
+    elif st.session_state.current_page == "Statistics":
+        render_statistics(features, workouts, skills)
+    elif st.session_state.current_page == "Settings":
+        render_settings()
 
 
 if __name__ == "__main__":
